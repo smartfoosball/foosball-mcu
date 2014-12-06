@@ -9,6 +9,7 @@ extern m2w_setModule			m_m2w_setModule;
 extern pro_commonCmd			m_pro_commonCmd;
 extern int								SN;		
 extern uint32_t						wait_wifi_status;
+extern game								m_game;
 
 uint16_t Key_Return = NO_KEY;           	//°´¼ü·µ»ØÖµ
 
@@ -105,6 +106,28 @@ uint8_t Get_Key(void)
 		return NO_KEY;
 }
 
+void updateGoalMember(uint8_t member_id) {
+	if (m_game.last_goal != SIDE_UNKNOWN) {
+				LED_RGB_Control(0,50,0);	
+			  LED_RGB_Control(0,0,0);	
+				m_game.last_goal_member = member_id;
+				updateGameStatus();
+	}
+}
+
+void exchangePosition(void) {
+	resetGame(m_m2w_mcuStatus.status_w.game_id + 1);
+	m_m2w_mcuStatus.status_r.actions = 1;
+}
+
+void exchangeMemberPosition(uint8_t side) {
+	m_m2w_mcuStatus.status_r.actions = (side == SIDE_BLUE ? 2 : 1) << 6;
+}
+
+uint8_t isPlaying(void) {
+	return m_m2w_mcuStatus.status_r.blue_goals > 0 || m_m2w_mcuStatus.status_r.blue_score > 0 || m_m2w_mcuStatus.status_r.red_goals > 0 || m_m2w_mcuStatus.status_r.red_score > 0;
+}
+
 /*******************************************************************************
 * Function Name  : KeyHandle
 * Description    : The key response function
@@ -119,29 +142,51 @@ void KeyHandle(void)
  	{
  		if(Key_Return & KEY_LONG)
 		{
-			m_pro_commonCmd.head_part.cmd = CMD_RESET_MODULE;
-			m_pro_commonCmd.head_part.sn = ++SN;
-			m_pro_commonCmd.sum = CheckSum((uint8_t *)&m_pro_commonCmd, sizeof(pro_commonCmd));
-			SendToUart((uint8_t *)&m_pro_commonCmd, sizeof(pro_commonCmd), 1);
-			
+			if (isPlaying()) {
+				exchangeMemberPosition(SIDE_RED);
+				LED_RGB_Control(0,0,50);
+			  LED_RGB_Control(0,0,0);
+				Key_Return = 0;
+			   return;
+			} else {
+				m_pro_commonCmd.head_part.cmd = CMD_RESET_MODULE;
+				m_pro_commonCmd.head_part.sn = ++SN;
+				m_pro_commonCmd.sum = CheckSum((uint8_t *)&m_pro_commonCmd, sizeof(pro_commonCmd));
+				SendToUart((uint8_t *)&m_pro_commonCmd, sizeof(pro_commonCmd), 1);
+			}
 			LED_RGB_Control(0,0,50);
 			LED_RGB_Control(0,0,0);
 			Key_Return = 0;
+		} else if(Key_Return & KEY_UP) {
+			updateGoalMember(MEMBER_RED_VAN);
+			Key_Return = 0;
+			return;
 		}
  	}
  	if(Key_Return & PRESS_KEY2)
  	{
 		if(Key_Return & KEY_LONG) 
 		{
-			m_m2w_setModule.config_info = 0x01;		//soft ap
-			LED_RGB_Control(50,0,0);		
-			wait_wifi_status = 1;
+			if (isPlaying()) {
+				exchangeMemberPosition(SIDE_BLUE);
+				LED_RGB_Control(0,0,50);
+			  LED_RGB_Control(0,0,0);
+				Key_Return = 0;
+			return;
+			} else {
+			  m_m2w_setModule.config_info = 0x02;		//air link
+			  LED_RGB_Control(0,50,0);
+			  wait_wifi_status = 1;
+			}
+			//m_m2w_setModule.config_info = 0x01;		//soft ap
+			//LED_RGB_Control(50,0,0);		
+			//wait_wifi_status = 1;
 		}
 		else if(Key_Return & KEY_UP) 
 		{
-			m_m2w_setModule.config_info = 0x02;		//air link
-			LED_RGB_Control(0,50,0);
-			wait_wifi_status = 1;
+			updateGoalMember(MEMBER_RED_REAR);
+			Key_Return = 0;
+			return;
 		}
 		else
 		{
@@ -161,15 +206,17 @@ void KeyHandle(void)
  	{
 		if(Key_Return & KEY_LONG)
 		{
-			m_m2w_mcuStatus.status_r.alert_byte = 0x01;		//alert 1
+//			m_m2w_mcuStatus.status_r.alert_byte = 0x01;		//alert 1
 			LED_RGB_Control(50,0,0);	
 			LED_RGB_Control(0,0,0);	
+			exchangePosition();
 		}
 		else if(Key_Return & KEY_UP)
 		{
-			m_m2w_mcuStatus.status_r.fault_byte = 0x03;		//fault 1 and 2
-			LED_RGB_Control(0,50,0);	
-			LED_RGB_Control(0,0,0);	
+//			m_m2w_mcuStatus.status_r.fault_byte = 0x03;		//fault 1 and 2
+			updateGoalMember(MEMBER_BLUE_VAN);
+			Key_Return = 0;
+			return;
 		}
 		else
 		{
@@ -178,8 +225,8 @@ void KeyHandle(void)
 		}
 	
 		ReportStatus(REPORT_STATUS);
-		m_m2w_mcuStatus.status_r.alert_byte = 0x00;			//clean the alert
-		m_m2w_mcuStatus.status_r.fault_byte = 0x00;			//clean the fault
+//		m_m2w_mcuStatus.status_r.alert_byte = 0x00;			//clean the alert
+//		m_m2w_mcuStatus.status_r.fault_byte = 0x00;			//clean the fault
 		delay_ms(500);
 		Key_Return = 0;
 	}		
@@ -188,15 +235,17 @@ void KeyHandle(void)
  	{
 		if(Key_Return & KEY_LONG)
 		{
-			m_m2w_mcuStatus.status_r.alert_byte = 0x02;		//alert 2
+//			m_m2w_mcuStatus.status_r.alert_byte = 0x02;		//alert 2
 			LED_RGB_Control(50,0,0);	
 			LED_RGB_Control(0,0,0);	
+			resetGame(m_m2w_mcuStatus.status_w.game_id + 1);
 		}
 		else if(Key_Return & KEY_UP)
 		{
-			m_m2w_mcuStatus.status_r.fault_byte = 0x0C;		//fault 3 and 4
-			LED_RGB_Control(0,50,0);	
-			LED_RGB_Control(0,0,0);	
+//			m_m2w_mcuStatus.status_r.fault_byte = 0x0C;		//fault 3 and 4
+			updateGoalMember(MEMBER_BLUE_REAR);
+			Key_Return = 0;
+			return;
 		}
 		else
 		{
@@ -205,8 +254,8 @@ void KeyHandle(void)
 		}
 	
 		ReportStatus(REPORT_STATUS);
-		m_m2w_mcuStatus.status_r.alert_byte = 0x00;			//clean the alert
-		m_m2w_mcuStatus.status_r.fault_byte = 0x00;			//clean the fault
+//		m_m2w_mcuStatus.status_r.alert_byte = 0x00;			//clean the alert
+//		m_m2w_mcuStatus.status_r.fault_byte = 0x00;			//clean the fault
 		delay_ms(500);
 		Key_Return = 0;
 	}		

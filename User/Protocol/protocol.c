@@ -15,6 +15,7 @@ extern uint8_t 										wait_ack_time;
 extern uint8_t 										uart_buf[256];
 extern uint16_t										uart_Count;
 extern uint32_t										wait_wifi_status;
+extern game											m_game;
 
 /*******************************************************************************
 * Function Name  : exchangeBytes
@@ -36,6 +37,48 @@ short	exchangeBytes(short	value)
 	*(index_1+1) = *index_2;
 	
 	return tmp_value;
+}
+
+void updateLEDDisplay(void) {
+	LED4_Display(m_m2w_mcuStatus.status_r.red_goals, m_m2w_mcuStatus.status_r.red_score, m_m2w_mcuStatus.status_r.blue_score, m_m2w_mcuStatus.status_r.blue_goals);
+}
+
+void updateGameStatus(void) {	
+	m_m2w_mcuStatus.status_r.actions = m_game.last_goal << 1;
+	m_m2w_mcuStatus.status_r.actions |= m_game.last_goal_member << 3;
+}
+
+void resetGame(uint8_t newGameId) {
+	m_m2w_mcuStatus.status_w.game_id = newGameId;
+	m_m2w_mcuStatus.status_r.blue_goals = 0;
+	m_m2w_mcuStatus.status_r.blue_score = 0;
+	m_m2w_mcuStatus.status_r.red_goals = 0;
+	m_m2w_mcuStatus.status_r.red_score = 0;
+	m_game.last_goal = 0;
+	m_game.last_goal_member = 0;
+	m_m2w_mcuStatus.status_w.game_control = GAME_STATUS_GOING;
+	
+	updateGameStatus();
+}
+
+void cancelBall(uint8_t cancelSide) {
+	if (cancelSide == CANCEL_BLUE_GOAL) {
+		if (m_m2w_mcuStatus.status_r.blue_goals == 0) return;
+		if (m_m2w_mcuStatus.status_r.blue_goals == 10) {
+			m_m2w_mcuStatus.status_r.blue_score -= 1;
+		}
+		m_m2w_mcuStatus.status_r.blue_goals -= 1;
+	} else if (cancelSide == CANCEL_RED_GOAL) {
+		if (m_m2w_mcuStatus.status_r.red_goals == 0) return;
+		if (m_m2w_mcuStatus.status_r.red_goals == 10) {
+			m_m2w_mcuStatus.status_r.red_score -= 1;
+		}
+		m_m2w_mcuStatus.status_r.red_goals -= 1;
+	}
+	m_game.last_goal = SIDE_UNKNOWN;
+	m_game.last_goal_member = MEMBER_DEFAULT;
+	
+	updateGameStatus();
 }
 
 /*******************************************************************************
@@ -107,100 +150,40 @@ void	CmdSendMcuP0(uint8_t *buf)
 	
 	if(buf == NULL) return ;
 	
-	memcpy(&m_w2m_controlMcu, buf, sizeof(w2m_controlMcu));
-	m_w2m_controlMcu.status_w.motor_speed = exchangeBytes(m_w2m_controlMcu.status_w.motor_speed);
+	memcpy(&m_w2m_controlMcu, buf, sizeof(w2m_controlMcu));                                                                                                                                                                                            
 	
 	//ÉÏ±¨×´Ì¬
 	if(m_w2m_controlMcu.sub_cmd == SUB_CMD_REQUIRE_STATUS) ReportStatus(REQUEST_STATUS);
 	
-	//¿ØÖÆÃüÁî£¬²Ù×÷×Ö¶ÎË³ÐòÒÀ´ÎÊÇ£º R_on/off, multi Color, R, G, B, motor
+	//¿ØÖÆÃüÁî£¬²Ù×÷×Ö¶ÎË³ÐòÒÀ´ÎÊÇ£º game_control, game_id
 	if(m_w2m_controlMcu.sub_cmd == SUB_CMD_CONTROL_MCU){
 		//ÏÈ»Ø¸´È·ÈÏ£¬±íÊ¾ÊÕµ½ºÏ·¨µÄ¿ØÖÆÃüÁîÁË£
 		SendCommonCmd(CMD_SEND_MCU_P0_ACK, m_w2m_controlMcu.head_part.sn);
 		
-		//¿ØÖÆÃüÁî±êÖ¾°´ÕÕÐ­Òé±íÃ÷ÄÄ¸ö²Ù×÷×Ö¶ÎÓÐÐ§£¨¶ÔÓ¦µÄÎ»Îª1£©want to control LED R 
+		//¿ØÖÆÃüÁî±êÖ¾°´ÕÕÐ­Òé±íÃ÷ÄÄ¸ö²Ù×÷×Ö¶ÎÓÐÐ§£¨¶ÔÓ¦µÄÎ»Îª1£©want to control game 
 		if((m_w2m_controlMcu.cmd_tag & 0x01) == 0x01)
 		{
-			//0 bit, 1: R on, 0: R off;
-			if((m_w2m_controlMcu.status_w.cmd_byte & 0x01) == 0x01)
+			//0 ongoing, 1: start, 2: finish, 3: cancel last ball
+			uint8_t control = m_w2m_controlMcu.status_w.game_control & 0x07;
+			if(control == 0x01) // start 
 			{
-				LED_RGB_Control(254, 0, 0);
-				m_m2w_mcuStatus.status_w.cmd_byte = (m_m2w_mcuStatus.status_w.cmd_byte | 0x01);
-			}
-			else
+				//LED4_Display(0, 0x10, 0x10, 0);
+				
+						//¿ØÖÆ game id
+				if((m_w2m_controlMcu.cmd_tag & 0x02) == 0x02)
+				{
+					resetGame(m_w2m_controlMcu.status_w.game_id);
+				} else {
+					resetGame(m_m2w_mcuStatus.status_w.game_id + 1);
+				}
+			} if (control == CANCEL_RED_GOAL || control == CANCEL_BLUE_GOAL) {
+				cancelBall(control);
+			} else                                    
 			{
-				LED_RGB_Control(0, 0, 0);
-				m_m2w_mcuStatus.status_w.cmd_byte = (m_m2w_mcuStatus.status_w.cmd_byte & 0xFE);
 			}
+			m_m2w_mcuStatus.status_w.game_control = GAME_STATUS_GOING;
 		}
 
-		//¿ØÖÆLED×éºÏÑÕÉ«
-		if((m_w2m_controlMcu.cmd_tag & 0x02) == 0x02)
-		{
-			tmp_cmd_buf = (m_w2m_controlMcu.status_w.cmd_byte & 0x06) >> 1;
-			// Ê¹ÓÃcmd_byteµÄµÚ2ºÍ3Î»£¬00:user define, 01: yellow, 10: purple, 11: pink
-			
-			if(tmp_cmd_buf == 0x00)
-			{
-				LED_RGB_Control(m_w2m_controlMcu.status_w.led_r, m_m2w_mcuStatus.status_w.led_g, m_m2w_mcuStatus.status_w.led_b);	
-				m_m2w_mcuStatus.status_w.cmd_byte = (m_m2w_mcuStatus.status_w.cmd_byte & 0xF9);
-			}
-			else if(tmp_cmd_buf == 0x01)
-			{		
-				LED_RGB_Control(254, 70, 0);
-				m_m2w_mcuStatus.status_w.cmd_byte = (m_m2w_mcuStatus.status_w.cmd_byte | 0x02);
-				m_m2w_mcuStatus.status_w.cmd_byte = (m_m2w_mcuStatus.status_w.cmd_byte & 0xFB);
-			}
-			else if(tmp_cmd_buf == 0x02)
-			{
-				LED_RGB_Control(254, 0, 70);	
-				m_m2w_mcuStatus.status_w.cmd_byte = (m_m2w_mcuStatus.status_w.cmd_byte | 0x04);
-				m_m2w_mcuStatus.status_w.cmd_byte = (m_m2w_mcuStatus.status_w.cmd_byte & 0xFD);
-			}
-			else if(tmp_cmd_buf == 0x03)
-			{
-				LED_RGB_Control(238, 30, 30);
-				m_m2w_mcuStatus.status_w.cmd_byte = (m_m2w_mcuStatus.status_w.cmd_byte | 0x06);
-			}
-		}
-		
-		tmp_cmd_buf = (m_m2w_mcuStatus.status_w.cmd_byte & 0x06) >> 1;
-		//¿ØÖÆ LED R
-		if((m_w2m_controlMcu.cmd_tag & 0x04) == 0x04)
-		{
-			//µ±LED×éºÏÑÕÉ«ÎªÓÃ»§×Ô¶¨ÒåÊ±ÉúÐ§
-			if(tmp_cmd_buf == 0x00){
-				LED_RGB_Control(m_w2m_controlMcu.status_w.led_r, m_m2w_mcuStatus.status_w.led_g, m_m2w_mcuStatus.status_w.led_b);			
-				m_m2w_mcuStatus.status_w.led_r = m_w2m_controlMcu.status_w.led_r;
-			}
-		}
-		
-		//¿ØÖÆ LED G
-		if((m_w2m_controlMcu.cmd_tag & 0x08) == 0x08)
-		{
-			//µ±LED×éºÏÑÕÉ«ÎªÓÃ»§×Ô¶¨ÒåÊ±ÉúÐ§
-			if(tmp_cmd_buf == 0x00){
-				LED_RGB_Control(m_m2w_mcuStatus.status_w.led_r, m_w2m_controlMcu.status_w.led_g, m_m2w_mcuStatus.status_w.led_b);			
-				m_m2w_mcuStatus.status_w.led_g = m_w2m_controlMcu.status_w.led_g;
-			}
-		}
-
-		//¿ØÖÆ LED B
-		if((m_w2m_controlMcu.cmd_tag & 0x10) == 0x10)
-		{
-			//µ±LED×éºÏÑÕÉ«ÎªÓÃ»§×Ô¶¨ÒåÊ±ÉúÐ§
-			if(tmp_cmd_buf == 0x00){
-				LED_RGB_Control(m_m2w_mcuStatus.status_w.led_r, m_m2w_mcuStatus.status_w.led_g, m_w2m_controlMcu.status_w.led_b);			
-				m_m2w_mcuStatus.status_w.led_b = m_w2m_controlMcu.status_w.led_b;
-			}
-		}
-		
-		//¿ØÖÆµç»ú
-		if((m_w2m_controlMcu.cmd_tag & 0x20) == 0x20)
-		{
-			Motor_status(m_w2m_controlMcu.status_w.motor_speed);
-			m_m2w_mcuStatus.status_w.motor_speed = m_w2m_controlMcu.status_w.motor_speed;
-		}
 		
 		ReportStatus(REPORT_STATUS);
 	}
@@ -267,11 +250,13 @@ void	CmdReportModuleStatus(uint8_t *buf)
 		if(wait_wifi_status == 1){
 			wait_wifi_status = 0;
 			LED_RGB_Control(0, 0, 0);
+			//LED4_Display(0, 0, 0, 8);
 		}
 	}
 	else
 	{
 		//´ÓÂ·ÓÉÆ÷¶Ï¿ª
+		//LED4_Display(0, 0, 0, 0xE);
 	}
 	
 	//5 bit
@@ -281,11 +266,13 @@ void	CmdReportModuleStatus(uint8_t *buf)
 		if(wait_wifi_status == 1){
 			wait_wifi_status = 0;
 			LED_RGB_Control(0, 0, 0);
+			//LED4_Display(0, 0, 8, 0);
 		}
 	}
 	else
 	{
 		//´Ó·þÎñÆ÷¶Ï¿ª
+		//LED4_Display(0, 0, 0xE, 0);
 	}
 	
 	SendCommonCmd(CMD_REPORT_MODULE_STATUS_ACK, m_w2m_reportModuleStatus.head_part.sn);
@@ -350,6 +337,7 @@ void MessageHandle(void)
 				break;
 		}	
 	}
+	
 }
 
 /*******************************************************************************
@@ -454,7 +442,7 @@ void ReportStatus(uint8_t tag)
 		m_m2w_mcuStatus.head_part.cmd = CMD_SEND_MODULE_P0;
 		m_m2w_mcuStatus.head_part.sn = ++SN;
 		m_m2w_mcuStatus.sub_cmd = SUB_CMD_REPORT_MCU_STATUS;
-		m_m2w_mcuStatus.status_w.motor_speed = exchangeBytes(m_m2w_mcuStatus.status_w.motor_speed);
+		//m_m2w_mcuStatus.status_w.motor_speed = exchangeBytes(m_m2w_mcuStatus.status_w.motor_speed);
 		m_m2w_mcuStatus.sum = CheckSum((uint8_t *)&m_m2w_mcuStatus, sizeof(m2w_mcuStatus));
 		SendToUart((uint8_t *)&m_m2w_mcuStatus, sizeof(m2w_mcuStatus), 1);
 	}
@@ -463,14 +451,17 @@ void ReportStatus(uint8_t tag)
 		m_m2w_mcuStatus.head_part.cmd = CMD_SEND_MCU_P0_ACK;
 		m_m2w_mcuStatus.head_part.sn = m_w2m_controlMcu.head_part.sn;
 		m_m2w_mcuStatus.sub_cmd = SUB_CMD_REQUIRE_STATUS_ACK;
-		m_m2w_mcuStatus.status_w.motor_speed = exchangeBytes(m_m2w_mcuStatus.status_w.motor_speed);
+		//m_m2w_mcuStatus.status_w.motor_speed = exchangeBytes(m_m2w_mcuStatus.status_w.motor_speed);
 		m_m2w_mcuStatus.sum = CheckSum((uint8_t *)&m_m2w_mcuStatus, sizeof(m2w_mcuStatus));
 		SendToUart((uint8_t *)&m_m2w_mcuStatus, sizeof(m2w_mcuStatus), 0);
 	}
 		
 
-	m_m2w_mcuStatus.status_w.motor_speed = exchangeBytes(m_m2w_mcuStatus.status_w.motor_speed);
+	//m_m2w_mcuStatus.status_w.motor_speed = exchangeBytes(m_m2w_mcuStatus.status_w.motor_speed);
 	memcpy(&m_m2w_mcuStatus_reported, &m_m2w_mcuStatus, sizeof(m2w_mcuStatus));
+	
+	
+	
 }
 
 
@@ -490,9 +481,9 @@ void	CheckStatus(void)
 	uint8_t			*index_new, *index_old;
 	
 	diff = 0;
-	DHT11_Read_Data(&m_m2w_mcuStatus.status_r.temputure, &m_m2w_mcuStatus.status_r.humidity);
-	
-	if(check_status_time < 200) return ;
+	//DHT11_Read_Data(&m_m2w_mcuStatus.status_r.temputure, &m_m2w_mcuStatus.status_r.humidity);
+	updateLEDDisplay();
+	if(check_status_time < 20) return ;
 		
 	check_status_time = 0;
 	index_new = (uint8_t *)&(m_m2w_mcuStatus.status_w);

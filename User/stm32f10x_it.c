@@ -36,7 +36,7 @@ extern uint8_t 										check_status_time;
 extern uint8_t										report_status_idle_time;
 extern uint16_t 									Key_Return;           						//按键返回值
 extern uint8_t 										cmd_flag1, cmd_flag2;
-
+extern game												m_game;
 extern uint8_t get_one_package;
 /** @addtogroup Template_Project
   * @{
@@ -212,6 +212,8 @@ void USART1_IRQHandler(void)
   }	
 }
 
+static uint16_t l_timestamp = 0;
+static uint16_t last_timestamp = 0;
 /******************************************************************************/
 /*             KEY1 :长按  RESET WIFI, KEY2 :短按  配置WiFi联                 */
 /*             定时器3中断服务程序                                            */
@@ -224,7 +226,7 @@ void TIM3_IRQHandler(void)
 	static uint8_t Key_Series  = FALSE;    							//标志连发开始	
 	
 	uint16_t Key_Press  = NO_KEY;          	 						//按键值     
-		
+	l_timestamp++;
 	if (TIM_GetITStatus(TIM3, TIM_IT_Update) != RESET)  //检查TIM3更新中断发生与否
 	{
 		TIM_ClearITPendingBit(TIM3, TIM_IT_Update  );  		//清除TIMx更新中断标志 
@@ -280,7 +282,94 @@ void TIM3_IRQHandler(void)
 	}
 } 
 
+void handleGoal(uint8_t side) {
+	m_m2w_mcuStatus.status_w.game_control = GAME_STATUS_GOING;
+	if (m_m2w_mcuStatus.status_r.red_goals == 10 || m_m2w_mcuStatus.status_r.blue_goals == 10) {
+		m_m2w_mcuStatus.status_r.red_goals = 0;
+		m_m2w_mcuStatus.status_r.blue_goals = 0;
+	}
+	if (side == SIDE_BLUE) {
+		m_m2w_mcuStatus.status_r.blue_goals += 1;
+		if (m_m2w_mcuStatus.status_r.blue_goals == 10) {
+			m_m2w_mcuStatus.status_r.blue_score += 1;
+			m_m2w_mcuStatus.status_w.game_control = GAME_STATUS_GOING;
+		}
+		else if (m_m2w_mcuStatus.status_r.blue_goals > 10) {
+			m_m2w_mcuStatus.status_r.blue_goals = 1;
+			m_m2w_mcuStatus.status_r.red_goals = 0;
+			m_m2w_mcuStatus.status_w.game_id += 1;
+		}
+		m_game.last_goal_member = MEMBER_BLUE_VAN;
+	} else {
+		m_m2w_mcuStatus.status_r.red_goals += 1;
+		if (m_m2w_mcuStatus.status_r.red_goals == 10) {
+			m_m2w_mcuStatus.status_r.red_score += 1;
+			m_m2w_mcuStatus.status_w.game_control = GAME_STATUS_GOING;
+		}
+		else if (m_m2w_mcuStatus.status_r.red_goals > 10) {
+			m_m2w_mcuStatus.status_r.red_goals = 1;
+			m_m2w_mcuStatus.status_r.blue_goals = 0;
+			m_m2w_mcuStatus.status_w.game_id += 1;
+		}
+		m_game.last_goal_member = MEMBER_RED_VAN;
+	}
+	m_game.last_goal = side;
+	updateGameStatus();
+}
+
 void EXTI15_10_IRQHandler(void) 
+{
+	EXTI->EMR &= (uint32_t)~(1<<1);   									//屏蔽中断事件
+
+	while(EXTI_GetITStatus(EXTI_Line10)!= RESET ) 
+	{		
+		if(GPIO_ReadInputDataBit(GPIOB, GPIO_Pin_10))
+		{
+			if ((l_timestamp - last_timestamp) > 50) { 
+				handleGoal(SIDE_BLUE);
+				last_timestamp = l_timestamp;
+			}
+//			m_m2w_mcuStatus.status_r.ir_status &= ~(1<<0);
+		}
+		else
+		{		
+//			m_m2w_mcuStatus.status_r.ir_status |= (1<<0);
+			last_timestamp = l_timestamp;
+		}	
+	
+		EXTI_ClearITPendingBit(EXTI_Line10);
+	}	
+	
+	EXTI->EMR |= (uint32_t)(1<<1);  										//开启中断事件  
+}
+
+void EXTI4_IRQHandler(void) 
+{
+	EXTI->EMR &= (uint32_t)~(1<<1);   									//屏蔽中断事件
+
+	while(EXTI_GetITStatus(EXTI_Line4)!= RESET ) 
+	{		
+		if(GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_4))
+		{
+			if ((l_timestamp - last_timestamp) > 50) {
+				handleGoal(SIDE_RED);
+				last_timestamp = l_timestamp;
+			}
+//			m_m2w_mcuStatus.status_r.ir_status &= ~(1<<0);
+		}
+		else
+		{		
+//			m_m2w_mcuStatus.status_r.ir_status |= (1<<0);
+			last_timestamp = l_timestamp;
+		}	
+	
+		EXTI_ClearITPendingBit(EXTI_Line4);
+	}	
+	
+	EXTI->EMR |= (uint32_t)(1<<1);  										//开启中断事件  
+}
+/*
+void EXTI15_12_IRQHandler(void) 
 {
 	EXTI->EMR &= (uint32_t)~(1<<1);   									//屏蔽中断事件
 
@@ -288,11 +377,14 @@ void EXTI15_10_IRQHandler(void)
 	{		
 		if(GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_12))
 		{
-			m_m2w_mcuStatus.status_r.ir_status &= ~(1<<0);
+			uint8_t status = ~(1<<0);
+			m_game.blue_goals = m_game.blue_goals + 1;
+			if (m_game.blue_goals > 10) m_game.blue_goals = 0;
+//			m_m2w_mcuStatus.status_r.ir_status &= ~(1<<0);
 		}
 		else
 		{		
-			m_m2w_mcuStatus.status_r.ir_status |= (1<<0);
+//			m_m2w_mcuStatus.status_r.ir_status |= (1<<0);
 		}	
 	
 		EXTI_ClearITPendingBit(EXTI_Line12);
@@ -300,7 +392,7 @@ void EXTI15_10_IRQHandler(void)
 	
 	EXTI->EMR |= (uint32_t)(1<<1);  										//开启中断事件  
 }
-
+*/
 /**
   * @}
   */ 

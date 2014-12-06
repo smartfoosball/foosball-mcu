@@ -5,6 +5,7 @@
 #include <stm32f10x.h>
 #include "hal_key.h"
 #include "hal_rgb_led.h"
+#include "hal_led.h"
 #include "hal_motor.h"
 #include "hal_temp_hum.h"
 
@@ -46,7 +47,7 @@
 #define		P0_VER																"00000004"
 #define		HARD_VER															"00000001"
 #define		SOFT_VER															"00000001"
-#define		PRODUCT_KEY														"6f3074fe43894547a4f1314bd7e3ae0b"
+#define		PRODUCT_KEY														"ef992d473159465ba9d70d4d1a14aa39"
 
 typedef	struct	_status_writable								status_writable;
 typedef	struct	_status_readonly								status_readonly;
@@ -58,23 +59,50 @@ typedef	struct	_w2m_controlMcu									w2m_controlMcu;
 typedef	struct	_m2w_mcuStatus									m2w_mcuStatus;
 typedef	struct	_w2m_reportModuleStatus					w2m_reportModuleStatus;
 typedef struct	_pro_errorCmd										pro_errorCmd;
+typedef struct _game														game;
+
+#define MEMBER_DEFAULT 0
+#define MEMBER_RED_VAN 1
+#define MEMBER_RED_REAR 2
+#define MEMBER_BLUE_VAN 3
+#define MEMBER_BLUE_REAR 4
+
+#define SIDE_UNKNOWN 0
+#define SIDE_BLUE 2
+#define SIDE_RED 1
+
+#define GAME_STATUS_GOING 0
+#define GAME_STATUS_START 1
+#define GAME_STATUS_FINISH 2
+
+#define CANCEL_BLUE_GOAL 3
+#define CANCEL_RED_GOAL 2
+
+__packed struct _game
+{
+/*	uint8_t			game_id;
+	uint8_t			game_status;
+	uint8_t			blue_goals;
+	uint8_t			red_goals;
+	uint8_t			blue_score;
+	uint8_t			red_score;*/
+	uint8_t			last_goal; // 0, unknown, 1, blue or 2, red
+	uint8_t			last_goal_member; // 0-none,1-red_van,2-red_rear,3-blue_van,4-blue_rear
+};
 
 __packed	struct	_status_writable
 {
-	uint8_t							cmd_byte;
-	uint8_t							led_r;
-	uint8_t							led_g;
-	uint8_t							led_b;
-	short								motor_speed;
+	uint8_t							game_control; // bit 0=going,1=start,2=finish,3=cancel last ball
+	uint8_t							game_id;
 };
 
 __packed	struct	_status_readonly
 {
-	uint8_t							ir_status;
-	uint8_t							temputure;
-	uint8_t							humidity;
-	uint8_t							alert_byte;
-	uint8_t							fault_byte;
+	uint8_t							actions; // exchange position=0, goal=1-2, goal_member=3-5, exchange_member=6-7
+	uint8_t							blue_goals;
+	uint8_t							red_goals;
+	uint8_t							blue_score;
+	uint8_t							red_score;
 };
 
 __packed	struct	_pro_headPart
@@ -149,6 +177,8 @@ void	SendToUart(uint8_t *buf, uint16_t packLen, uint8_t tag);
 void	ReportStatus(uint8_t tag);
 void	CheckStatus(void);
 uint8_t CheckSum(  uint8_t *buf,int packLen );
+void updateGameStatus(void);
+void resetGame(uint8_t newGameId);
 
 #endif /*_PROTOCOL_H*/
 

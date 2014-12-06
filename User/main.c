@@ -15,6 +15,7 @@
 #include "hal_temp_hum.h"
 #include "protocol.h"
 #include "hal_infrared.h"
+#include "hal_led.h"
 
 uint8_t 									get_one_package;							//判断是否接收到一个完整的串口数据包
 uint8_t 									uart_buf[256]; 								//串口缓冲区
@@ -36,6 +37,7 @@ m2w_mcuStatus							m_m2w_mcuStatus;							//当前最新的mcu状态帧
 m2w_mcuStatus							m_m2w_mcuStatus_reported;			//上次发送的mcu状态，当与最新的mcu状态不同时，需要上报；
 w2m_reportModuleStatus		m_w2m_reportModuleStatus;			//wifi模块上报状态帧
 pro_errorCmd							m_pro_errorCmd;								//错误命令帧
+game											m_game;
 
 int	McuStatusInit()
 {
@@ -71,13 +73,14 @@ int	McuStatusInit()
 	//binable_time默认0，可以随时被绑定；
 	m_m2w_returnMcuInfo.binable_time = 0;																		
 		
+	memset(&m_game, 0, sizeof(m_game));
+	//m_game.game_id = 1;
 	//初始化mcu状态帧，sn和校验和需要根据实际填写；
 	memset(&m_m2w_mcuStatus, 0, sizeof(m2w_mcuStatus));
+	m_m2w_mcuStatus.status_w.game_id = 1;
 	m_m2w_mcuStatus.head_part.head[0] = 0xFF;
 	m_m2w_mcuStatus.head_part.head[1] = 0xFF;
 	m_m2w_mcuStatus.head_part.len = exchangeBytes(sizeof(m2w_mcuStatus) - 4);
-	DHT11_Read_Data((uint8_t *)&(m_m2w_mcuStatus.status_r.temputure), (uint8_t *)&(m_m2w_mcuStatus.status_r.humidity));
-	m_m2w_mcuStatus.status_w.motor_speed = 5;
 	
 	//初始化配置wifi模块帧，sn和校验和需要根据实际填写；
 	memset(&m_m2w_setModule, 0, sizeof(m2w_setModule));
@@ -109,10 +112,17 @@ int main(void)
 	Motor_Init();	
 	RGB_LED_Init();
 	DHT11_Init();
-	IR_Init();
+	//IR_Init(IR_BOARD);
+	
+	
+	LED4_Init();
+//	LED4_Display(0, 1, 2, 3);
 	
 	//初始化各类型数据帧
 	McuStatusInit();
+	
+	IR_Init(IR_BLUE);
+	IR_Init(IR_RED);
 
 	while(1)
 	{
