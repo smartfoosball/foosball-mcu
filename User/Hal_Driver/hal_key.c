@@ -143,7 +143,8 @@ void KeyHandle(void)
  		if(Key_Return & KEY_LONG)
 		{
 			if (isPlaying()) {
-				exchangeMemberPosition(SIDE_RED);
+				//exchangeMemberPosition(SIDE_RED);
+				cancelBall(CANCEL_RED_GOAL);
 				LED_RGB_Control(0,0,50);
 			  LED_RGB_Control(0,0,0);
 				Key_Return = 0;
@@ -168,7 +169,8 @@ void KeyHandle(void)
 		if(Key_Return & KEY_LONG) 
 		{
 			if (isPlaying()) {
-				exchangeMemberPosition(SIDE_BLUE);
+				//exchangeMemberPosition(SIDE_BLUE);
+				cancelBall(CANCEL_BLUE_GOAL);
 				LED_RGB_Control(0,0,50);
 			  LED_RGB_Control(0,0,0);
 				Key_Return = 0;
