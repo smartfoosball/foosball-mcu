@@ -300,6 +300,9 @@ void handleGoal(uint8_t side) {
 			m_m2w_mcuStatus.status_w.game_id += 1;
 		}
 		m_game.last_goal_member = MEMBER_BLUE_VAN;
+		LED_RGB_Control(0,254,0);
+		LED_RGB_Control(0,0,54);
+		Motor_status(10);
 	} else {
 		m_m2w_mcuStatus.status_r.red_goals += 1;
 		if (m_m2w_mcuStatus.status_r.red_goals == 10) {
@@ -312,6 +315,9 @@ void handleGoal(uint8_t side) {
 			m_m2w_mcuStatus.status_w.game_id += 1;
 		}
 		m_game.last_goal_member = MEMBER_RED_VAN;
+		LED_RGB_Control(0,254,0);
+		LED_RGB_Control(254,0,0);
+		Motor_status(0);
 	}
 	m_game.last_goal = side;
 	updateGameStatus();

@@ -508,5 +508,6 @@ void	CheckStatus(void)
 	//如果状态10分钟没有变化，强制上报一次；
 	if(diff > 0 || report_status_idle_time > 60000) ReportStatus(REPORT_STATUS);
 	if(report_status_idle_time > 60000) report_status_idle_time = 0;
+	Motor_status(5);
 	
 }
