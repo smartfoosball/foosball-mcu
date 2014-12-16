@@ -5,23 +5,16 @@
 #include <stm32f10x.h>
 #include "protocol.h"
 
-#define DIO_LOW GPIO_ResetBits(GPIOA,GPIO_Pin_6)
-#define DIO_HIGH GPIO_SetBits(GPIOA,GPIO_Pin_6)	
+#define DIO_LOW GPIO_ResetBits(GPIOA,GPIO_Pin_6) // é€šè¿‡ PA6 å‘é€ä½ç”µå¹³ ç»™ DIO 
+#define DIO_HIGH GPIO_SetBits(GPIOA,GPIO_Pin_6) // é€šè¿‡ PA6 å‘é€é«˜ç”µå¹³ ç»™ DIO   
+#define RCLK_LOW GPIO_ResetBits(GPIOA,GPIO_Pin_7) // é€šè¿‡ PA7 å‘é€ä½ç”µå¹³ ç»™ RCLK
+#define RCLK_HIGH GPIO_SetBits(GPIOA,GPIO_Pin_7)  // é€šè¿‡ PA7 å‘é€é«˜ç”µå¹³ ç»™ RCLK
 
-#define RCLK_LOW GPIO_ResetBits(GPIOA,GPIO_Pin_7)
-#define RCLK_HIGH GPIO_SetBits(GPIOA,GPIO_Pin_7)	
+#define SCLK_LOW GPIO_ResetBits(GPIOA,GPIO_Pin_5) // é€šè¿‡ PA5 å‘é€ä½ç”µå¹³ ç»™ SCLK
+#define SCLK_HIGH GPIO_SetBits(GPIOA,GPIO_Pin_5)  // é€šè¿‡ PA5 å‘é€é«˜ç”µå¹³ ç»™ RCLK
 
-#define SCLK_LOW GPIO_ResetBits(GPIOA,GPIO_Pin_5)
-#define SCLK_HIGH GPIO_SetBits(GPIOA,GPIO_Pin_5)
+void LED4_Init(void); // åˆå§‹åŒ– IO å£ä¿¡æ¯
 
-// sbit DIO = P1^0; //´®ĞĞÊı¾İÊäÈë
-// sbit RCLK  = P1^1;				//Ê±ÖÓÂö³åĞÅºÅ¡ª¡ªÉÏÉıÑØÓĞĞ§
-// sbit SCLK = P1^2;				//´òÈëĞÅºÅ¡ª¡ª¡ª¡ªÉÏÉıÑØÓĞĞ§
-
-
-void LED4_Init(void);
+// è¾“å‡º 4 ä¸ª æ•°å­—åˆ° LED æ˜¾ç¤ºå±ï¼Œå–å€¼èŒƒå›´ ä» 0 åˆ° 15(F)
 void LED4_Display(uint8_t d1, uint8_t d2, uint8_t d3, uint8_t d4);
-
-
 #endif /*_HAL_LED4_H*/
-

@@ -1,46 +1,12 @@
 #include "hal_led.h"
 
-//unsigned char code fseg[]={0xc0,0xf9,0xa4,0xb0,0x99,0x92,0x82,0xf8,0x80,0x90};
-//unsigned char code segbit[]={0x80,0x40,0x20,0x10,0x08,0x04,0x02,0x01};
-// unsigned char  disbuf[4]={0,0,0,0};
-
-
- //-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 // 函数原形定义
 #define uchar unsigned char
 
-//void main (void);					// 主函数
-//void LED4_Display (void);			// LED显示
 void LED_OUT(uchar X);				// LED单字节串行移位函数
 
 unsigned char LED_0F[];		// LED字模表
-
-// sbit DIO = P1^0;				//串行数据输入
-// sbit RCLK  = P1^1;				//时钟脉冲信号——上升沿有效
-// sbit SCLK = P1^2;				//打入信号————上升沿有效
-
-//-----------------------------------------------------------------------------
-// 全局变量
-uchar LED[8];	//用于LED的8位显示缓存
-
-
-//*****************************************************************************
-// 主程序
-/*
-void main (void) 
-{
-
-	LED[0]=1;
-	LED[1]=2;
-	LED[2]=3;
-	LED[3]=4;
-
-	while(1)
-	{
-		LED4_Display ();
-	} 
-} */
-
 
 void LED_OUT(uchar X)
 {
@@ -62,12 +28,11 @@ unsigned char LED_0F[] =
 
 void LED4_Init(void)
 {
-	
 	GPIO_InitTypeDef GPIO_InitStruct;
 	RCC_APB2PeriphClockCmd( RCC_APB2Periph_GPIOA,ENABLE);
-	GPIO_InitStruct.GPIO_Mode = GPIO_Mode_Out_PP;//GPIO_Mode_Out_OD;
+	GPIO_InitStruct.GPIO_Mode = GPIO_Mode_Out_PP;
 	GPIO_InitStruct.GPIO_Pin = GPIO_Pin_6|GPIO_Pin_7|GPIO_Pin_5;
-	GPIO_InitStruct.GPIO_Speed = GPIO_Speed_50MHz; // GPIO_Speed_50MHz;
+	GPIO_InitStruct.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_Init(GPIOA, &GPIO_InitStruct);
 	
 	LED4_Display(8, 8, 8, 8);
