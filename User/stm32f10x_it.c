@@ -331,7 +331,7 @@ void EXTI15_10_IRQHandler(void)
 	{		
 		if(GPIO_ReadInputDataBit(GPIOB, GPIO_Pin_10))
 		{
-			if ((l_timestamp - last_timestamp) > 50) { 
+			if ((l_timestamp - last_timestamp) > 1/*50*/) { 
 				handleGoal(SIDE_BLUE);
 				last_timestamp = l_timestamp;
 			}
@@ -357,7 +357,7 @@ void EXTI4_IRQHandler(void)
 	{		
 		if(GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_4))
 		{
-			if ((l_timestamp - last_timestamp) > 50) {
+			if ((l_timestamp - last_timestamp) > 1/*50*/) {
 				handleGoal(SIDE_RED);
 				last_timestamp = l_timestamp;
 			}

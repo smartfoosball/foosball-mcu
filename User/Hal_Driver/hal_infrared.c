@@ -52,7 +52,7 @@ void IR_EXTI_Init(uint8_t id)
 /* Configure EXTI0 line */    
 	EXTI_InitStructure.EXTI_Line = extiLine;     //设置中断类型   
 	EXTI_InitStructure.EXTI_Mode = EXTI_Mode_Interrupt;    
-	EXTI_InitStructure.EXTI_Trigger = EXTI_Trigger_Rising_Falling;    //上升沿触发   
+	EXTI_InitStructure.EXTI_Trigger = EXTI_Trigger_Rising;    //上升沿触发   EXTI_Trigger_Rising EXTI_Trigger_Rising_Falling
 	EXTI_InitStructure.EXTI_LineCmd = ENABLE;   
 	EXTI_Init(&EXTI_InitStructure); 
 	
